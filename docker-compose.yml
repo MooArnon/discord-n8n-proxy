@@ -1,0 +1,41 @@
+# Use a modern Docker Compose file format
+version: '3.8'
+
+# Define the services (containers) that make up your application
+services:
+  # The Python app that handles Discord interactions
+  discord-n8n-proxy:
+    build: .
+    environment:
+      # Pass the environment variables from the .env file to the container
+      - DISCORD_PUBLIC_KEY=${DISCORD_PUBLIC_KEY}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
+    # This port is only for internal communication within the Docker network
+    expose:
+      - 8080
+    networks:
+      - web_network
+  
+  # The Nginx reverse proxy service that handles public traffic
+  nginx:
+    image: nginx:latest
+    # Map public ports on the server to the container's ports
+    ports:
+      - "80:80"
+      - "443:443"
+    # Mount volumes for configuration and SSL certificates
+    volumes:
+      # Mount the nginx.conf file from your host machine
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro       
+      # Mount the Certbot volume for SSL certificates
+      - ./certbot/conf:/etc/letsencrypt             
+      - ./certbot/www:/var/www/certbot              
+    depends_on:
+      - discord-n8n-proxy
+    networks:
+      - web_network
+
+# Define the shared network for the services
+networks:
+  web_network:
+    driver: bridge
